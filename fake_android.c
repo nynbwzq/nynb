@@ -1,7 +1,18 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-// 伪造 liblog.so 里的日志函数
+// 1. 强行造一个安卓的 __sF 符号（标准输入/输出/错误）
+FILE __sF[3];
+
+// 2. 在程序启动时，用 Ubuntu 的文件流覆盖它
+__attribute__((constructor))
+static void init_sF() {
+    __sF[0] = *stdin;
+    __sF[1] = *stdout;
+    __sF[2] = *stderr;
+}
+
+// 3. 伪造日志打印
 int __android_log_print(int prio, const char* tag, const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -11,7 +22,7 @@ int __android_log_print(int prio, const char* tag, const char* fmt, ...) {
     return 1;
 }
 
-// 伪造 libandroid.so 里的资源函数
+// 4. 伪造资源读取
 void* AAssetManager_fromJava(void* env, void* assetManager) { return 0; }
 void* AAssetManager_open(void* mgr, const char* filename, int mode) { return 0; }
 void AAsset_close(void* asset) {}
