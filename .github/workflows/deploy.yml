@@ -7,17 +7,29 @@ jobs:
     - uses: actions/checkout@v4
     - name: Compile and Run
       run: |
-        # 1. 编译伪造的安卓库
+        # 1. 安装依赖
+        sudo apt-get update
+        sudo apt-get install -y cmake libelf-dev git
+
+        # 2. 编译伪造的安卓库
         gcc -shared -fPIC -o liblog.so fake_android.c
         gcc -shared -fPIC -o libandroid.so fake_android.c
         
-        # 2. 🔥 核心修复：解决 invalid ELF header 报错
-        # Ubuntu 的 libc.so 是文本，我们强行把它链接到真正的二进制 libc.so.6
+        # 3. 修复 libc 软链接
         ln -sf /lib/aarch64-linux-gnu/libc.so.6 libc.so
         ln -sf /lib/aarch64-linux-gnu/libm.so.6 libm.so
         ln -sf /lib/aarch64-linux-gnu/libdl.so.2 libdl.so
         
-        # 3. 编译并运行你的服务器
+        # 4. 🔥 终极魔法：编译并运行 termux-elf-cleaner，洗掉安卓专属版本号！
+        git clone https://github.com/termux/termux-elf-cleaner.git
+        cd termux-elf-cleaner
+        cmake .
+        make
+        sudo make install
+        cd ..
+        termux-elf-cleaner libmmai.so
+
+        # 5. 编译运行
         g++ -std=c++17 -o server server.cpp -ldl
         export LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH
         ./server
