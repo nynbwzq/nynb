@@ -11,11 +11,13 @@ jobs:
         gcc -shared -fPIC -o liblog.so fake_android.c
         gcc -shared -fPIC -o libandroid.so fake_android.c
         
-        # 2. 编译五子棋服务器
+        # 2. 🔥 核心修复：解决 invalid ELF header 报错
+        # Ubuntu 的 libc.so 是文本，我们强行把它链接到真正的二进制 libc.so.6
+        ln -sf /lib/aarch64-linux-gnu/libc.so.6 libc.so
+        ln -sf /lib/aarch64-linux-gnu/libm.so.6 libm.so
+        ln -sf /lib/aarch64-linux-gnu/libdl.so.2 libdl.so
+        
+        # 3. 编译并运行你的服务器
         g++ -std=c++17 -o server server.cpp -ldl
-        
-        # 3. 设置环境变量，让程序在当前目录找假库
         export LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH
-        
-        # 4. 运行！
         ./server
