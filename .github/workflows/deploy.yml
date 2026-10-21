@@ -7,5 +7,15 @@ jobs:
     - uses: actions/checkout@v4
     - name: Compile and Run
       run: |
+        # 1. 编译伪造的安卓库
+        gcc -shared -fPIC -o liblog.so fake_android.c
+        gcc -shared -fPIC -o libandroid.so fake_android.c
+        
+        # 2. 编译五子棋服务器
         g++ -std=c++17 -o server server.cpp -ldl
+        
+        # 3. 设置环境变量，让程序在当前目录找假库
+        export LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH
+        
+        # 4. 运行！
         ./server
