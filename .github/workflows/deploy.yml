@@ -35,5 +35,14 @@ jobs:
         grep -o 'https://.*trycloudflare.com' cf.log
         echo "=================================================="
         
-        # 保持运行 10 分钟，让你有足够的时间去玩
-        sleep 21000
+        # 这一段加在 deploy.yml 的最后面
+echo "=== 正在检查服务器是否存活 ==="
+if ps aux | grep -v grep | grep -q "./server"; then
+    echo "✅ C++ 服务器进程存活中！"
+else
+    echo "❌ 致命错误：C++ 服务器未启动！"
+    echo "=== 以下是 server.log 报错信息 ==="
+    cat server.log
+    exit 1
+fi
+sleep 600
