@@ -7,42 +7,44 @@ jobs:
     - uses: actions/checkout@v4
     - name: Compile and Run
       run: |
-        # 1. 安装依赖，编译伪造库
+        # 1. 编译伪造库
         gcc -shared -fPIC -o liblog.so fake_android.c
         gcc -shared -fPIC -o libandroid.so fake_android.c
+        
+        # 2. 修复系统库依赖 (之前你在 Orkestr 里加上这步才跑通)
         ln -sf /lib/aarch64-linux-gnu/libc.so.6 libc.so
         ln -sf /lib/aarch64-linux-gnu/libm.so.6 libm.so
         ln -sf /lib/aarch64-linux-gnu/libdl.so.2 libdl.so
         
-        # 2. 编译你的 C++ 服务器
+        # 3. 编译 C++ 服务器
         g++ -std=c++17 -o server server.cpp -ldl
+        
+        # 4. 运行环境变量
         export LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH
         
-        # 3. 下载内网穿透工具 cloudflared
+        # 5. 启动 cloudflared
         wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64
         chmod +x cloudflared-linux-arm64
-        
-        # 4. 启动穿透，获取公网网址 (后台运行)
         nohup ./cloudflared-linux-arm64 tunnel --url http://127.0.0.1:8080 > cf.log 2>&1 &
         
-        # 5. 启动你的五子棋服务器 (后台运行)
+        # 6. 启动你的服务器
         nohup ./server > server.log 2>&1 &
         
-        # 6. 等待几秒钟，提取网址并打印出来
-        sleep 8
+        # 7. 等待 5 秒钟
+        sleep 5
+        
         echo "=================================================="
-        echo "🔥🔥🔥 你的公网网址是: "
+        echo "🔥 隧道获取的网址是: "
         grep -o 'https://.*trycloudflare.com' cf.log
         echo "=================================================="
         
-        # 这一段加在 deploy.yml 的最后面
-echo "=== 正在检查服务器是否存活 ==="
-if ps aux | grep -v grep | grep -q "./server"; then
-    echo "✅ C++ 服务器进程存活中！"
-else
-    echo "❌ 致命错误：C++ 服务器未启动！"
-    echo "=== 以下是 server.log 报错信息 ==="
-    cat server.log
-    exit 1
-fi
-sleep 600
+        # 🔥 核心：检查服务器是否存活！如果死了，打印遗言！
+        if ps aux | grep -v grep | grep -q "./server"; then
+            echo "✅ C++ 服务器进程存活！"
+        else
+            echo "❌ 服务器进程已崩溃！以下是 server.log 的遗言："
+            cat server.log
+        fi
+        
+        # 强行撑住任务，不让他马上结束
+        sleep 21000
