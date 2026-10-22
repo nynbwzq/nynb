@@ -7,44 +7,51 @@ jobs:
     - uses: actions/checkout@v4
     - name: Compile and Run
       run: |
-        # 1. 编译伪造库
+        # 1. 编译伪造的安卓库
         gcc -shared -fPIC -o liblog.so fake_android.c
         gcc -shared -fPIC -o libandroid.so fake_android.c
         
-        # 2. 修复系统库依赖 (之前你在 Orkestr 里加上这步才跑通)
+        # 2. 修复系统库软链接
         ln -sf /lib/aarch64-linux-gnu/libc.so.6 libc.so
         ln -sf /lib/aarch64-linux-gnu/libm.so.6 libm.so
         ln -sf /lib/aarch64-linux-gnu/libdl.so.2 libdl.so
         
-        # 3. 编译 C++ 服务器
+        # 3. 🔥 编译并运行神器：洗掉 .so 的安卓 LIBC 依赖！
+        git clone https://github.com/termux/termux-elf-cleaner.git
+        cd termux-elf-cleaner
+        cmake .
+        make
+        sudo make install
+        cd ..
+        termux-elf-cleaner libmmai.so
+        
+        # 4. 编译 C++ 服务器
         g++ -std=c++17 -o server server.cpp -ldl
         
-        # 4. 运行环境变量
+        # 5. 设置环境变量
         export LD_LIBRARY_PATH=$PWD:$LD_LIBRARY_PATH
         
-        # 5. 启动 cloudflared
+        # 6. 启动 cloudflared
         wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64
         chmod +x cloudflared-linux-arm64
         nohup ./cloudflared-linux-arm64 tunnel --url http://127.0.0.1:8080 > cf.log 2>&1 &
         
-        # 6. 启动你的服务器
+        # 7. 启动服务器
         nohup ./server > server.log 2>&1 &
         
-        # 7. 等待 5 秒钟
-        sleep 5
+        # 8. 等待 8 秒并输出结果
+        sleep 8
         
         echo "=================================================="
         echo "🔥 隧道获取的网址是: "
         grep -o 'https://.*trycloudflare.com' cf.log
         echo "=================================================="
         
-        # 🔥 核心：检查服务器是否存活！如果死了，打印遗言！
         if ps aux | grep -v grep | grep -q "./server"; then
-            echo "✅ C++ 服务器进程存活！"
+            echo "✅ 服务器存活！"
         else
-            echo "❌ 服务器进程已崩溃！以下是 server.log 的遗言："
+            echo "❌ 崩溃！遗言如下："
             cat server.log
         fi
         
-        # 强行撑住任务，不让他马上结束
         sleep 21000
